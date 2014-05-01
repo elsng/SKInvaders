@@ -77,9 +77,15 @@ typedef enum InvaderType{
 }
 
 -(void)setupInvaders{
-	CGPoint baseOrigin = CGPointMake(kInvaderSize.width/2, 180);
+	//set up the origin point of the group of invaders
+	CGPoint baseOrigin = CGPointMake(kInvaderSize.width/2, 0);
+	
+	//For each row...
 	for (NSUInteger row = 0; row < kInvaderRowCount; ++row){
+		//get invader type enum
 		InvaderType invaderType;
+		
+		//set color of invaders for each row
         if (row % 3 == 0) {
 			invaderType = InvaderTypeA;
 		}
@@ -90,12 +96,18 @@ typedef enum InvaderType{
 			invaderType = InvaderTypeC;
 		}
 		
+		//position first invader in row based on baseOrigin
 		CGPoint invaderPosition = CGPointMake(baseOrigin.x, row * (kInvaderGridSpacing.height + kInvaderSize.height) + baseOrigin.y);
 		
+		//for each column...
 		for (NSUInteger col = 0; col < kInvaderColCount; ++col) {
+			//create invader instance
 			SKNode* invader = [self makeInvaderOfType:invaderType];
+			//position invader
 			invader.position = invaderPosition;
+			//add invader to view
 			[self addChild:invader];
+			//modify invaderPosition for the next invader
 			invaderPosition.x += kInvaderSize.width + kInvaderGridSpacing.width;
 		}
 	}
