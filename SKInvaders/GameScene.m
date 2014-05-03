@@ -17,6 +17,14 @@ typedef enum InvaderType{
 	InvaderTypeC
 } InvaderType;
 
+typedef enum InvaderMovementDirection{
+	InvaderMovementDirectionRight,
+    InvaderMovementDirectionLeft,
+    InvaderMovementDirectionDownThenRight,
+    InvaderMovementDirectionDownThenLeft,
+    InvaderMovementDirectionNone
+} InvaderMovementDirection;
+
 #define kInvaderSize CGSizeMake(24, 16)
 #define kInvaderGridSpacing CGSizeMake(12,12)
 #define kInvaderRowCount 6
@@ -35,6 +43,9 @@ typedef enum InvaderType{
 #pragma mark - Private GameScene Properties
 
 @interface GameScene ()
+@property InvaderMovementDirection invaderMovementDirection;
+@property NSTimeInterval timeOfLastMove;
+@property NSTimeInterval timePerMove;
 @property BOOL contentCreated;
 @end
 
@@ -56,6 +67,12 @@ typedef enum InvaderType{
 //Create Content
 - (void)createContent
 {
+	self.invaderMovementDirection = InvaderMovementDirectionRight;
+	//pause for one second for each move
+	self.timePerMove = 0.1;
+	//set time to 0
+	self.timeOfLastMove = 0.0;
+	
 	[self setupHud];
 	[self setupInvaders];
 	[self setupShip];
@@ -166,14 +183,84 @@ typedef enum InvaderType{
 }
 
 #pragma mark - Scene Update
-
+//Game loop
 - (void)update:(NSTimeInterval)currentTime
 {
+	[self moveInvadersForUpdate:currentTime];
 }
 
 #pragma mark - Scene Update Helpers
+-(void)moveInvadersForUpdate:(NSTimeInterval)currentTime{
+	//check if
+	if (currentTime - self.timeOfLastMove < self.timePerMove) return;
+	
+	//loop over nodes that are named kInvaderName, then move each based on invaderMovementDirection
+	[self enumerateChildNodesWithName:kInvaderName usingBlock:^(SKNode *node, BOOL *stop){
+		switch (self.invaderMovementDirection) {
+            case InvaderMovementDirectionRight:
+                node.position = CGPointMake(node.position.x + 10, node.position.y);
+                break;
+            case InvaderMovementDirectionLeft:
+                node.position = CGPointMake(node.position.x - 10, node.position.y);
+                break;
+            case InvaderMovementDirectionDownThenLeft:
+            case InvaderMovementDirectionDownThenRight:
+                node.position = CGPointMake(node.position.x, node.position.y - 10);
+                break;
+            InvaderMovementDirectionNone:
+            default:
+                break;
+		}
+	}];
+	//update timing
+	self.timeOfLastMove = currentTime;
+	//update direction
+	[self determineInvaderMovementDirection];
+}
 
 #pragma mark - Invader Movement Helpers
+-(void)determineInvaderMovementDirection{
+
+	//__block allows proposedMovementDirection to be able to change InvaderMovementDirection const
+	__block InvaderMovementDirection proposedMovementDirection = self.invaderMovementDirection;
+	
+	//loop over all invaders, test for edges of scene and change proposedMovementDirection accordingly
+    [self enumerateChildNodesWithName:kInvaderName usingBlock:^(SKNode *node, BOOL *stop) {
+        switch (self.invaderMovementDirection) {
+			//when invader hits right edge, go DownThenLeft
+            case InvaderMovementDirectionRight:
+                if (CGRectGetMaxX(node.frame) >= node.scene.size.width - 1.0f) {
+                    proposedMovementDirection = InvaderMovementDirectionDownThenLeft;
+                    *stop = YES;
+                }
+                break;
+			//when invader hits left edge, go DownThenRight
+            case InvaderMovementDirectionLeft:
+                if (CGRectGetMinX(node.frame) <= 1.0f) {
+                    proposedMovementDirection = InvaderMovementDirectionDownThenRight;
+                    *stop = YES;
+                }
+                break;
+			//if invader has already gone down, it needs to go left
+            case InvaderMovementDirectionDownThenLeft:
+                proposedMovementDirection = InvaderMovementDirectionLeft;
+                *stop = YES;
+                break;
+			//if invader has already gone down, it needs to go right
+            case InvaderMovementDirectionDownThenRight:
+                proposedMovementDirection = InvaderMovementDirectionRight;
+                *stop = YES;
+                break;
+            default:
+                break;
+        }
+    }];
+	
+	//if proposed direction is different from current movement direction, set to proposed
+	if (proposedMovementDirection != self.invaderMovementDirection) {
+        self.invaderMovementDirection = proposedMovementDirection;
+    }
+}
 
 #pragma mark - Bullet Helpers
 
